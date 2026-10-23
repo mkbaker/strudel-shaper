@@ -15,6 +15,12 @@
       <button id="access-key-btn" type="button" title="Site Access Key">🔑 Key</button>
       <span id="status">Press Play (or Ctrl+Enter). Select code or put the cursor on a line, then press ⌘/Ctrl+K.</span>
     </header>
+    <nav id="actions" aria-label="Actions">
+      <button type="button" data-action="shape" title="Shape (⌘/Ctrl+K)" aria-label="Shape (⌘/Ctrl+K)">Shape</button>
+      <button type="button" data-action="fix-minimal" title="Fix (⌘/Ctrl+J)" aria-label="Fix (⌘/Ctrl+J)">Fix</button>
+      <button type="button" data-action="fix-rewrite" title="Rewrite (⌘/Ctrl+⇧J)" aria-label="Rewrite (⌘/Ctrl+⇧J)">Rewrite</button>
+      <button type="button" data-action="format" title="Format (⌘/Ctrl+⇧F)" aria-label="Format (⌘/Ctrl+⇧F)">Format</button>
+    </nav>
     <main id="editor-wrap"></main>
     <section id="tray" tabindex="0" hidden aria-label="Variation tray"></section>
     <script type="module" src="/src/main.ts"></script>

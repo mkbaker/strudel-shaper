@@ -20,7 +20,7 @@ import { RemoteProvider, modelForMode, type RemoteSettings } from './remoteProvi
 import { COMMON_DRUMS, summariseLoaded, summariseSounds } from './soundSummary';
 import { Quantizer } from './quantize';
 import { isRangeIntact, mapRange, splice, type Capture, type Edit, type Range } from './splice';
-import { initialState, slotCount, transition, type Effect, type Slot, type SlotCard, type TrayEvent, type TrayState } from './trayMachine';
+import { initialState, slotCount, transition, type Effect, type Slot, type SlotCard, type Tray, type TrayEvent, type TrayState } from './trayMachine';
 import { Validator, WorkerBackend, type WorkerLike } from './validator';
 import { editorSliderField, holdEffects, sliderIdMap } from './widgets';
 
@@ -39,6 +39,7 @@ const quantizer = new Quantizer(scheduler);
 
 const statusEl = document.getElementById('status')!;
 const trayEl = document.getElementById('tray')!;
+const actionsEl = document.getElementById('actions')!;
 
 document.getElementById('play')!.addEventListener('click', () => mirror.evaluate());
 document.getElementById('stop')!.addEventListener('click', () => mirror.stop());
@@ -805,9 +806,30 @@ trayEl.addEventListener('keydown', (e) => {
 });
 
 trayEl.addEventListener('click', (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
   const card = (e.target as HTMLElement).closest<HTMLElement>('[data-slot]');
-  if (card) send({ type: 'audition', slot: Number(card.dataset.slot) as Slot });
+  if (button) {
+    if (!button.disabled) void trayAction(button.dataset.action!);
+  } else if (card) send({ type: 'audition', slot: Number(card.dataset.slot) as Slot });
   trayEl.focus();
+});
+
+/** The tray's touch buttons (shown on narrow screens): the same events as 0, Enter, R, T and Esc. */
+async function trayAction(action: string) {
+  if (action === 'original') send({ type: 'audition', slot: 0 });
+  else if (action === 'accept') send({ type: 'enter' });
+  else if (action === 'regenerate') send({ type: 'regenerate', requestId: ++requestSeq });
+  else if (action === 'swap') toggleSwapTiming();
+  // Esc goes back to the original first, so press it until the tray is gone.
+  else if (action === 'close') while (state.kind === 'tray') await send({ type: 'escape' });
+}
+
+// The start actions for touch screens. Taking no focus on press keeps the editor's selection and cursor line.
+actionsEl.addEventListener('mousedown', (e) => e.preventDefault());
+actionsEl.addEventListener('click', (e) => {
+  const action = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-action]')?.dataset.action;
+  if (action === 'format') void formatBuffer();
+  else if (action) startCapture(action as Mode);
 });
 
 // --- Render -----------------------------------------------------------------------------------
@@ -815,6 +837,10 @@ trayEl.addEventListener('click', (e) => {
 const KEYS_HINT = '⌘/Ctrl+K shape · ⌘/Ctrl+J fix · ⌘/Ctrl+⇧J rewrite · ⌘/Ctrl+⇧F format · Alt+P provider';
 
 function render() {
+  // As the keys: nothing starts mid-commit, and formatting waits for the tray to close.
+  for (const b of actionsEl.querySelectorAll('button')) {
+    b.disabled = state.kind === 'committed' || (b.dataset.action === 'format' && state.kind === 'tray');
+  }
   const swap = `swap: ${quantizer.mode} (T)`;
   if (state.kind !== 'tray') {
     statusEl.textContent = `${KEYS_HINT} · ${swap.replace('(T)', '(Alt+T)')}`;
@@ -873,8 +899,21 @@ function render() {
   const error =
     (tray.error ? ` · <span class="stale">${escapeHtml(tray.error)}</span>` : '') +
     (tray.bufferError ? ` · <span class="stale" title="${escapeHtml(tray.bufferError)}">buffer has an error: ${escapeHtml(tray.bufferError.slice(0, 80))}</span>` : '');
-  trayEl.innerHTML = `<div class="meta">${escapeHtml(status)}${error}</div><div class="meta">${hint}</div><div class="cards">${original}${options.join('')}</div>`;
+  trayEl.innerHTML = `${trayActions(tray)}<div class="meta">${escapeHtml(status)}${error}</div><div class="meta">${hint}</div><div class="cards">${original}${options.join('')}</div>`;
   statusEl.textContent = `${KEYS_HINT} · ${swap.replace('(T)', '(Alt+T)')}`;
+}
+
+/** Disabled where the key does nothing (Enter with nothing auditioned only closes; Close covers that). */
+function trayActions(tray: Tray) {
+  const button = (action: string, label: string, title: string, disabled = false) =>
+    `<button type="button" tabindex="-1" data-action="${action}" title="${title}"${disabled ? ' disabled' : ''}>${label}</button>`;
+  return `<div class="actions">${[
+    button('original', 'Original', 'Back to the original (0)', tray.heard === 0),
+    button('accept', 'Accept', 'Accept the option playing (Enter)', tray.heard === 0 || tray.stale),
+    button('regenerate', 'Regenerate', 'Regenerate (R)', tray.stale),
+    button('swap', `Swap: ${quantizer.mode}`, 'Swap timing (T)'),
+    button('close', 'Close', 'Close (Esc)'),
+  ].join('')}</div>`;
 }
 
 /** The provider, and for a remote one the model that answered (or will: a fix mode may use another). */

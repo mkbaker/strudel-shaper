@@ -38,3 +38,20 @@ header button { background: #2a2a2a; color: #ddd; border: 1px solid #444; paddin
 #tray .card .badge.info { background: #23283b; color: #7aa2f7; }
 header select { background: #2a2a2a; color: #ddd; border: 1px solid #444; padding: 3px 6px; }
 header select option:disabled { color: #777; font-style: italic; }
+/* Touch alternatives to the shortcuts: narrow screens only. */
+#actions, #tray .actions { display: none; }
+
+@media (max-width: 600px) {
+  header { flex-wrap: wrap; gap: 8px; padding: 8px; }
+  header strong { flex: 1 1 100%; }
+  header button, header select { min-height: 36px; }
+  header select { flex: 1 1 0; min-width: 0; }
+  #status { flex: 1 1 100%; line-height: 1.4; }
+  #actions, #tray .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  #actions { padding: 8px; border-bottom: 1px solid #333; }
+  #tray .actions { margin-bottom: 8px; }
+  #actions button, #tray .actions button { flex: 1 1 0; min-height: 36px; background: #2a2a2a; color: #ddd; border: 1px solid #444; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 14px; }
+  #actions button:disabled, #tray .actions button:disabled { opacity: 0.4; cursor: default; }
+  #tray { padding: 8px; max-height: 55vh; overflow-y: auto; }
+  #tray .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
